@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy package.json and package-lock.json (if exists)
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies with legacy peer deps
+RUN npm install --legacy-peer-deps
 
 # Copy the rest of the frontend code
 COPY . .
@@ -16,8 +16,5 @@ COPY . .
 # Expose port 5173 for Vite development server
 EXPOSE 5173
 
-# Install Vite globally
-RUN npm install -g vite
-
 # Start the Vite development server
-CMD ["vite", "--host", "0.0.0.0"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
