@@ -1,4 +1,4 @@
-# Use Node.js 18 for compatibility with Vite and React
+# Use Node.js 20
 FROM node:20
 
 # Set working directory
@@ -10,11 +10,11 @@ COPY package.json package-lock.json* ./
 # Install dependencies
 RUN npm install
 
-# Copy the rest of the frontend code
+# Copy the rest of the backend code
 COPY . .
 
-# Expose port 5173 for Vite development server
+# Expose port 3000 for the backend server
 EXPOSE 3000
 
-# Start the Vite development server
-CMD ["npm", "start"]
+# Start the backend server
+CMD ["node", "server.js"]

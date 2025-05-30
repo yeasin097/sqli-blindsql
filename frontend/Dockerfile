@@ -1,4 +1,4 @@
-# Use Node.js 18 for compatibility with Vite and React
+# Use Node.js 20
 FROM node:20
 
 # Set working directory
@@ -16,5 +16,8 @@ COPY . .
 # Expose port 5173 for Vite development server
 EXPOSE 5173
 
+# Install Vite globally
+RUN npm install -g vite
+
 # Start the Vite development server
-CMD ["npm", "run", "dev"]
+CMD ["vite", "--host", "0.0.0.0"]
