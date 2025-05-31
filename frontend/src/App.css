@@ -20,11 +20,16 @@ body {
   line-height: 1.6;
 }
 
+
+
 .app-container {
+  min-width: 1200px;
+  margin: 0 auto;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
+
 
 /* Navigation Styles */
 .navbar-brand {

