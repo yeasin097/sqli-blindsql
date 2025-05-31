@@ -10,7 +10,7 @@ function App() {
       <div className="app-container">
         <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
           <div className="container">
-            <a className="navbar-brand" href="/">Blind SQL Injection Lab</a>
+            <a className="navbar-brand" href="/">Product Store</a>
             <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
               <span className="navbar-toggler-icon"></span>
             </button>

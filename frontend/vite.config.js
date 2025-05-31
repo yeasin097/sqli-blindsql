@@ -9,8 +9,9 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://backend:3000', // Use Docker service name
+        target: 'http://backend:5000',
         changeOrigin: true,
+        secure: false
       },
     },
     hmr: {

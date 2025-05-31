@@ -434,3 +434,54 @@ This lab provides comprehensive training on extracting multiple database values 
 - The efficiency and stealth advantages of multiple value extraction
 
 ---
+
+# Lab 07: Blind SQL Injection with Time Delays and Information Retrieval
+
+## Overview
+This lab demonstrates a time-based blind SQL injection vulnerability in a product search feature. The application uses a PostgreSQL database and has a vulnerable search endpoint that allows attackers to extract information through timing-based techniques.
+
+## Learning Objectives
+- Understand how time-based blind SQL injection works
+- Learn to use timing differences to extract information from a database
+- Practice writing and executing time-based SQL injection payloads
+- Understand the importance of consistent response times in secure applications
+
+## Lab Setup
+1. Ensure Docker and Docker Compose are installed on your system
+2. Clone this repository
+3. Navigate to the lab directory
+4. Run the following command to start the lab:
+   - For Windows: `run.bat`
+   - For Linux/Mac: `./run.sh`
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000
+
+## Lab Structure
+- `frontend/`: Contains the React frontend application
+- `backend/`: Contains the Node.js backend server
+- `db/`: Contains database initialization scripts
+- `docker-compose.yml`: Docker configuration for the lab environment
+
+## Database Schema
+The lab uses a PostgreSQL database with the following structure:
+```sql
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL
+);
+```
+
+## Security Note
+This lab is intentionally vulnerable and should only be run in a controlled environment. The vulnerabilities demonstrated are for educational purposes only.
+
+## Cleanup
+To stop and remove all containers:
+1. Press Ctrl+C in the terminal where the containers are running
+2. Run `docker-compose down` to remove the containers
+
+## Additional Resources
+- OWASP SQL Injection Prevention Cheat Sheet
+- PostgreSQL Documentation
+- Time-based SQL Injection Techniques

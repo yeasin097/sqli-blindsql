@@ -1,20 +1,20 @@
-# Use Node.js 20
-FROM node:20
+# backend/Dockerfile
+FROM node:20-alpine
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if exists)
-COPY package.json package-lock.json* ./
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
-# Install dependencies with legacy peer deps
-RUN npm install --legacy-peer-deps
+# Install dependencies
+RUN npm install
 
-# Copy the rest of the backend code
+# Copy the rest of the application code
 COPY . .
 
-# Expose port 3000 for the backend server
-EXPOSE 3000
+# Expose the port the app runs on
+EXPOSE 5000
 
-# Start the backend server
-CMD ["node", "server.js"]
+# Command to run the application
+CMD ["npm", "start"]

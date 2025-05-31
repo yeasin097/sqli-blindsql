@@ -11,8 +11,12 @@ function ProductDetail() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await axios.get(`http://localhost:3000/api/products/${id}`);
-        setProduct(response.data);
+        const response = await axios.get(`http://localhost:5000/api/products/${id}`);
+        if (response.data.success) {
+          setProduct(response.data.data);
+        } else {
+          setError('Product not found');
+        }
         setLoading(false);
       } catch (error) {
         console.error('Error fetching product details:', error);
@@ -53,7 +57,9 @@ function ProductDetail() {
           <div className="col-md-8">
             <h4>Product Information</h4>
             <p className="lead">This is a detailed view of the selected product.</p>
-            <p>In a real application, this would contain product descriptions, images, prices, and other details.</p>
+            {product.description && (
+              <p>{product.description}</p>
+            )}
           </div>
           <div className="col-md-4">
             <div className="card mb-3">
@@ -62,6 +68,18 @@ function ProductDetail() {
                 <p><strong>ID:</strong> {product.id}</p>
                 <p><strong>Name:</strong> {product.name}</p>
               </div>
+            </div>
+          </div>
+        </div>
+        
+        <hr/>
+        
+        <div className="row">
+          <div className="col-md-6">
+            <h5>Security Note</h5>
+            <div className="alert alert-info">
+              <p><strong>Secure Endpoint:</strong> This product detail page uses parameterized queries and is not vulnerable to SQL injection.</p>
+              <p>The main search page demonstrates the vulnerability for educational purposes.</p>
             </div>
           </div>
         </div>

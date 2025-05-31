@@ -23,7 +23,7 @@ function SearchFilter({ onSearchChange, currentSearch }) {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Search products (e.g., laptop, phone)"
+                  placeholder="Search products..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                 />

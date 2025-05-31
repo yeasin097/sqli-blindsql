@@ -1,20 +1,20 @@
-# Use Node.js 20
-FROM node:20
+# frontend/Dockerfile
+FROM node:20-alpine
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if exists)
-COPY package.json package-lock.json* ./
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
-# Install dependencies with legacy peer deps
-RUN npm install --legacy-peer-deps
+# Install dependencies
+RUN npm install
 
-# Copy the rest of the frontend code
+# Copy the rest of the application code
 COPY . .
 
-# Expose port 5173 for Vite development server
+# Expose the port Vite dev server runs on
 EXPOSE 5173
 
-# Start the Vite development server
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Command to run the Vite development server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
