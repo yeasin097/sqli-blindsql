@@ -18,7 +18,7 @@ function Home() {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`http://localhost:5000/api/products?search=${encodeURIComponent(searchTerm)}`);
+        const response = await axios.get(`https://678aa840859cc728c0ad9211-lb-740.bm-south.lab.poridhi.io//api/products?search=${encodeURIComponent(searchTerm)}`);
         setProducts(response.data.data);
         setQuerySQL(`SELECT id, name FROM products WHERE name ILIKE '%${searchTerm}%'`);
       } catch (error) {

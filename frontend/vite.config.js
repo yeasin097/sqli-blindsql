@@ -9,7 +9,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://678aa840859cc728c0ad9211-lb-740.bm-south.lab.poridhi.io/',
         changeOrigin: true,
       },
     },
