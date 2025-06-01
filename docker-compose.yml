@@ -2,54 +2,61 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:16-alpine
-    restart: always
-    environment:
-      POSTGRES_USER: ${DB_USER:-user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
-      POSTGRES_DB: ${DB_NAME:-sqli_lab_db} # Updated DB_NAME
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "5432:5432" # Expose DB port for local access/tools (optional)
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5000
     volumes:
-      - db_data:/var/lib/postgresql/data # Persistent data volume
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql # Initialize database with schema and data
-    healthcheck: # Added healthcheck for better dependency management
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - blind-sqli-network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    restart: always
-    environment:
-      DB_USER: ${DB_USER:-user}
-      DB_HOST: db # Service name for the database container
-      DB_NAME: ${DB_NAME:-sqli_lab_db} # Updated DB_NAME
-      DB_PASSWORD: ${DB_PASSWORD:-password}
-      DB_PORT: ${DB_PORT:-5432}
-      PORT: ${BACKEND_PORT:-5000}
     ports:
-      - "5000:5000" # Expose backend port
+      - "5000:5000"
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=blind_sqli_lab
+      - PORT=5000
     depends_on:
       db:
-        condition: service_healthy # Wait for db to be healthy
+        condition: service_healthy
+    networks:
+      - blind-sqli-network
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    restart: always
+  db:
+    image: mysql:8.0
     ports:
-      - "5173:5173" # Expose Vite's default dev server port
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=blind_sqli_lab
     volumes:
-      - ./frontend:/app # Mount the frontend source code for hot reloading
-      - /app/node_modules # Exclude node_modules from the mount
-    depends_on:
-      - backend # Ensure backend is up before frontend starts (for proxy)
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - blind-sqli-network
+
+networks:
+  blind-sqli-network:
+    driver: bridge
 
 volumes:
-  db_data: # Define the named volume for database persistence
+  mysql_data:

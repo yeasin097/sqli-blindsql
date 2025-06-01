@@ -1,20 +1,21 @@
 # frontend/Dockerfile
+# Use Node.js LTS version
 FROM node:20-alpine
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy package files
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy the rest of the application code
+# Copy application code
 COPY . .
 
-# Expose the port Vite dev server runs on
+# Expose port
 EXPOSE 5173
 
-# Command to run the Vite development server
+# Start the Vite development server
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
