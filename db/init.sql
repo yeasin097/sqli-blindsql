@@ -5,7 +5,10 @@ USE blind_sqli_lab;
 -- Create products table
 CREATE TABLE IF NOT EXISTS products (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(50),
+    price DECIMAL(10,2),
+    description TEXT
 );
 
 -- Create users table
@@ -29,17 +32,17 @@ CREATE TABLE IF NOT EXISTS admin_users (
 );
 
 -- Insert sample data into products
-INSERT INTO products (name) VALUES
-    ('Laptop Pro X1'),
-    ('Smartphone Ultra'),
-    ('Wireless Headphones'),
-    ('Smart Watch Series 5'),
-    ('Gaming Console X'),
-    ('4K Monitor'),
-    ('Wireless Mouse'),
-    ('Mechanical Keyboard'),
-    ('External SSD 1TB'),
-    ('Webcam HD');
+INSERT INTO products (name, category, price, description) VALUES
+    ('Laptop Pro X1', 'Laptops', 999.99, 'High-performance laptop'),
+    ('Smartphone Ultra', 'Smartphones', 699.99, 'Latest smartphone model'),
+    ('Wireless Headphones', 'Audio', 149.99, 'Noise-canceling headphones'),
+    ('Smart Watch Series 5', 'Accessories', 249.99, 'Smartwatch with fitness tracking'),
+    ('Gaming Console X', 'Gaming', 499.99, 'Next-gen gaming console'),
+    ('4K Monitor', 'Monitors', 399.99, 'Ultra HD monitor'),
+    ('Wireless Mouse', 'Accessories', 29.99, 'Ergonomic wireless mouse'),
+    ('Mechanical Keyboard', 'Accessories', 89.99, 'RGB mechanical keyboard'),
+    ('External SSD 1TB', 'Storage', 129.99, 'High-speed external SSD'),
+    ('Webcam HD', 'Accessories', 59.99, '1080p webcam');
 
 -- Insert sample users
 INSERT INTO users (username, email, password, full_name, phone) VALUES

@@ -5,48 +5,48 @@ import ProductDetail from './ProductDetail';
 import './App.css';
 
 function App() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [responseTime, setResponseTime] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [responseTime, setResponseTime] = useState(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+  const API_URL = import.meta.env.VITE_API_URL; // Use environment variable
 
   const searchProducts = async (term) => {
-    setLoading(true)
-    setError(null)
-    const startTime = performance.now()
-    
+    setLoading(true);
+    setError(null);
+    const startTime = performance.now();
+
     try {
-      const response = await fetch(`${API_URL}/api/products?search=${encodeURIComponent(term)}`)
-      const data = await response.json()
-      const endTime = performance.now()
-      
+      const response = await fetch(`${API_URL}/api/products?search=${encodeURIComponent(term)}`);
+      const data = await response.json();
+      const endTime = performance.now();
+
       if (data.success) {
-        setProducts(data.data)
-        setResponseTime(endTime - startTime)
+        setProducts(data.data);
+        setResponseTime(endTime - startTime);
       } else {
-        setError('Failed to fetch products')
+        setError('Failed to fetch products');
       }
     } catch (err) {
-      setError('Error connecting to server')
-      console.error('Search error:', err)
+      setError('Error connecting to server');
+      console.error('Search error:', err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     if (searchTerm === '') {
-      searchProducts('')
+      searchProducts('');
     }
-  }, [])
+  }, []);
 
   const handleSearch = (e) => {
-    e.preventDefault()
-    searchProducts(searchTerm)
-  }
+    e.preventDefault();
+    searchProducts(searchTerm);
+  };
 
   return (
     <Router>
@@ -66,7 +66,7 @@ function App() {
             </div>
           </div>
         </nav>
-        
+
         <div className="container py-4">
           <Routes>
             <Route path="/" element={<Home />} />

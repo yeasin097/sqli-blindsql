@@ -1,51 +1,96 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import axios from 'axios';
 
-function ProductCard({ product }) {
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price);
-  };
+function ProductDetail() {
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { id } = useParams();
 
-  const getCategoryBadgeClass = (category) => {
-    const categoryClasses = {
-      'Laptops': 'bg-primary',
-      'Smartphones': 'bg-success',
-      'Audio': 'bg-warning text-dark',
-      'Accessories': 'bg-info',
-      'Monitors': 'bg-secondary'
+  const API_URL = import.meta.env.VITE_API_URL; // Use environment variable
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/products/${id}`);
+        if (response.data.success) {
+          setProduct(response.data.data);
+        } else {
+          setError('Product not found');
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching product details:', error);
+        setError('Product not found or error loading details');
+        setLoading(false);
+      }
     };
-    return categoryClasses[category] || 'bg-dark';
-  };
+
+    fetchProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="text-center py-5">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading product details...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="alert alert-danger">
+        <p>{error}</p>
+        <Link to="/" className="btn btn-primary">Back to Search</Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="card h-100 shadow-sm">
-      <div className="card-body d-flex flex-column">
-        <div className="mb-2">
-          <span className={`badge ${getCategoryBadgeClass(product.category)} mb-2`}>
-            {product.category}
-          </span>
-        </div>
-        
-        <h5 className="card-title">{product.name}</h5>
-        
-        <div className="mt-auto">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <span className="h5 mb-0 text-primary">{formatPrice(product.price)}</span>
+    <div className="card shadow">
+      <div className="card-header bg-primary text-white">
+        <h2 className="mb-0">{product.name}</h2>
+      </div>
+      <div className="card-body">
+        <div className="row">
+          <div className="col-md-8">
+            <h4>Product Information</h4>
+            <p className="lead">This is a detailed view of the selected product.</p>
+            {product.description && (
+              <p>{product.description}</p>
+            )}
           </div>
-          
-          <Link 
-            to={`/product/${product.id}`} 
-            className="btn btn-primary w-100"
-          >
-            View Details
-          </Link>
+          <div className="col-md-4">
+            <div className="card mb-3">
+              <div className="card-body">
+                <h6>Product Details</h6>
+                <p><strong>ID:</strong> {product.id}</p>
+                <p><strong>Name:</strong> {product.name}</p>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <hr/>
+
+        <div className="row">
+          <div className="col-md-6">
+            <h5>Security Note</h5>
+            <div className="alert alert-info">
+              <p><strong>Secure Endpoint:</strong> This product detail page uses parameterized queries and is not vulnerable to SQL injection.</p>
+              <p>The main search page demonstrates the vulnerability for educational purposes.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="card-footer">
+        <Link to="/" className="btn btn-secondary">Back to Search</Link>
       </div>
     </div>
   );
 }
 
-export default ProductCard;
+export default ProductDetail;

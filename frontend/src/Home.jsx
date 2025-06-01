@@ -10,7 +10,8 @@ function Home() {
   const [error, setError] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Get search from URL parameters, default to empty
+  const API_URL = import.meta.env.VITE_API_URL; // Use environment variable
+
   const searchTerm = searchParams.get('search') || '';
 
   useEffect(() => {
@@ -18,9 +19,9 @@ function Home() {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`http://localhost:5000/api/products?search=${encodeURIComponent(searchTerm)}`);
+        const response = await axios.get(`${API_URL}/api/products?search=${encodeURIComponent(searchTerm)}`);
         setProducts(response.data.data);
-        setQuerySQL(`SELECT id, name FROM products WHERE name ILIKE '%${searchTerm}%'`);
+        setQuerySQL(`SELECT id, name FROM products WHERE name LIKE '%${searchTerm}%'`); // Fixed ILIKE to LIKE for MySQL
       } catch (error) {
         console.error('Error fetching products:', error);
         setError('Failed to fetch products');
@@ -56,7 +57,7 @@ function Home() {
       <p className="text-center text-muted mb-4">
         Search for products by name or category.
       </p>
-      
+
       <SearchFilter onSearchChange={handleSearchChange} currentSearch={searchTerm} />
 
       {error && (
@@ -97,7 +98,7 @@ function Home() {
             </div>
           </div>
         </div>
-        
+
         <div className="col-md-6">
           <div className="card">
             <div className="card-body">
