@@ -7,27 +7,28 @@ function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { id } = useParams();
-  
+
+  const API_URL = import.meta.env.VITE_API_URL;
+
   useEffect(() => {
+    console.log('API_URL:', API_URL); // Debug: Verify API_URL
     const fetchProduct = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/products/${id}`);
-        if (response.data.success) {
-          setProduct(response.data.data);
-        } else {
-          setError('Product not found');
-        }
+        const response = await axios.get(`/api/products/${id}`);
+        console.log('Product response:', response.data); // Debug: Log response
+        if (!response.data.success) throw new Error('Product not found');
+        setProduct(response.data.data);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching product details:', error);
-        setError('Product not found or error loading details');
+        setError(`Product not found or error loading details: ${error.message}`);
         setLoading(false);
       }
     };
-    
+
     fetchProduct();
-  }, [id]);
-  
+  }, [id, API_URL]);
+
   if (loading) {
     return (
       <div className="text-center py-5">
@@ -37,7 +38,7 @@ function ProductDetail() {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="alert alert-danger">
@@ -46,7 +47,7 @@ function ProductDetail() {
       </div>
     );
   }
-  
+
   return (
     <div className="card shadow">
       <div className="card-header bg-primary text-white">
@@ -67,13 +68,15 @@ function ProductDetail() {
                 <h6>Product Details</h6>
                 <p><strong>ID:</strong> {product.id}</p>
                 <p><strong>Name:</strong> {product.name}</p>
+                <p><strong>Category:</strong> {product.category || 'N/A'}</p>
+                <p><strong>Price:</strong> {product.price ? `$${product.price.toFixed(2)}` : 'N/A'}</p>
               </div>
             </div>
           </div>
         </div>
-        
+
         <hr/>
-        
+
         <div className="row">
           <div className="col-md-6">
             <h5>Security Note</h5>
